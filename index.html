@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AquaRoot — Premium ESP32 Smart Irrigation Platform for precision agriculture. Monitor soil moisture, automate irrigation, and generate FAO-56 crop schedules." />
+  <meta name="theme-color" content="#059669" />
+  <title>AquaRoot — Smart Irrigation Platform</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       SIDEBAR MOBILE OVERLAY
+       ============================================================ -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ============================================================
+       TOAST NOTIFICATION CONTAINER
+       ============================================================ -->
+  <div class="toast-container" id="toastContainer" role="alert" aria-live="polite"></div>
+
+  <!-- ============================================================
+       APP WRAPPER
+       ============================================================ -->
+  <div class="app-wrapper">
+
+    <!-- ========================================================
+         SIDEBAR
+         ======================================================== -->
+    <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+      <!-- Logo -->
+      <div class="sidebar-logo">
+        <div class="logo-icon" aria-hidden="true">
+          <i class="fa-solid fa-seedling"></i>
+        </div>
+        <div class="logo-text">
+          <span class="logo-name">AquaRoot</span>
+          <span class="logo-tagline">Smart Irrigation</span>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Main Menu</div>
+
+        <div class="nav-item active" data-section="dashboard" data-tooltip="Dashboard" role="button" tabindex="0" aria-current="page">
+          <span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span>
+          <span class="nav-label">Dashboard</span>
+        </div>
+
+        <div class="nav-item" data-section="irrigation" data-tooltip="Irrigation" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-water"></i></span>
+          <span class="nav-label">Irrigation</span>
+        </div>
+
+        <div class="nav-item" data-section="sensors" data-tooltip="Sensors" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-microchip"></i></span>
+          <span class="nav-label">Sensors</span>
+        </div>
+
+        <div class="nav-item" data-section="analytics" data-tooltip="Analytics" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+          <span class="nav-label">Analytics</span>
+        </div>
+
+        <div class="nav-section-title">Planning</div>
+
+        <div class="nav-item" data-section="scheduler" data-tooltip="Crop Scheduler" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span>
+          <span class="nav-label">Crop Scheduler</span>
+        </div>
+
+        <div class="nav-item" data-section="logs" data-tooltip="Water Logs" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-list-check"></i></span>
+          <span class="nav-label">Water Logs</span>
+          <span class="nav-badge" id="logBadge">3</span>
+        </div>
+
+        <div class="nav-section-title">System</div>
+
+        <div class="nav-item" data-section="settings" data-tooltip="Settings" role="button" tabindex="0">
+          <span class="nav-icon"><i class="fa-solid fa-sliders"></i></span>
+          <span class="nav-label">Settings</span>
+        </div>
+      </nav>
+
+      <!-- User Footer -->
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar">RF</div>
+          <div class="user-info">
+            <div class="user-name">Rahul Farmer</div>
+            <div class="user-role">Farm Manager</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========================================================
+         MAIN CONTENT WRAPPER
+         ======================================================== -->
+    <div class="main-wrapper" id="mainWrapper">
+
+      <!-- ======================================================
+           TOP NAVBAR
+           ====================================================== -->
+      <header class="navbar" id="navbar" role="banner">
+        <div class="navbar-left">
+          <!-- Mobile Menu Button -->
+          <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sidebar">
+            <i class="fa-solid fa-bars" id="mobileMenuIcon"></i>
+          </button>
+          <!-- Desktop Sidebar Toggle -->
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div>
+            <div class="page-title" id="pageTitle">Dashboard</div>
+            <div class="page-breadcrumb">AquaRoot / <span id="pageBreadcrumb">Overview</span></div>
+          </div>
+        </div>
+
+        <div class="navbar-center">
+          <div class="status-pill" id="systemStatusPill">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="systemStatusText">ESP32 Online</span>
+          </div>
+        </div>
+
+        <div class="navbar-right">
+          <!-- WiFi indicator -->
+          <div class="navbar-btn" title="WiFi Signal">
+            <div class="wifi-indicator" id="wifiIndicator">
+              <div class="wifi-bar" id="wifiBar1"></div>
+              <div class="wifi-bar" id="wifiBar2"></div>
+              <div class="wifi-bar" id="wifiBar3"></div>
+            </div>
+          </div>
+
+          <!-- Notifications -->
+          <button class="navbar-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-badge" id="notifBadge"></span>
+          </button>
+
+          <!-- Theme Toggle -->
+          <div class="theme-toggle" id="themeToggle" title="Toggle theme" role="button" tabindex="0" aria-label="Toggle light/dark theme">
+            <i class="fa-solid fa-sun" id="themeIcon"></i>
+            <div class="toggle-track" id="toggleTrack">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="mobile-section-nav" aria-label="Quick section navigation">
+        <button class="mobile-section-tab active" data-section="dashboard" type="button">Dashboard</button>
+        <button class="mobile-section-tab" data-section="irrigation" type="button">Irrigation</button>
+        <button class="mobile-section-tab" data-section="sensors" type="button">Sensors</button>
+        <button class="mobile-section-tab" data-section="analytics" type="button">Analytics</button>
+        <button class="mobile-section-tab" data-section="scheduler" type="button">Scheduler</button>
+        <button class="mobile-section-tab" data-section="logs" type="button">Logs</button>
+        <button class="mobile-section-tab" data-section="settings" type="button">Settings</button>
+      </nav>
+
+      <!-- SVG Gradient Definitions (hidden) -->
+      <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
+        <defs>
+          <linearGradient id="emerald-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#34d399"/>
+            <stop offset="100%" stop-color="#059669"/>
+          </linearGradient>
+          <linearGradient id="cyan-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#22d3ee"/>
+            <stop offset="100%" stop-color="#0891b2"/>
+          </linearGradient>
+          <linearGradient id="amber-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#fbbf24"/>
+            <stop offset="100%" stop-color="#f59e0b"/>
+          </linearGradient>
+          <linearGradient id="red-gradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#f87171"/>
+            <stop offset="100%" stop-color="#ef4444"/>
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <!-- ======================================================
+           PAGE: DASHBOARD
+           ====================================================== -->
+      <section class="page-section active" id="section-dashboard" aria-label="Dashboard overview">
+
+        <!-- Hero Banner -->
+        <div class="hero-section" role="region" aria-label="Welcome banner">
+          <div class="hero-blob hero-blob-1"></div>
+          <div class="hero-blob hero-blob-2"></div>
+          <div class="hero-content">
+            <div class="hero-badge">
+              <i class="fa-solid fa-bolt"></i>
+              <span>Live Monitoring Active</span>
+            </div>
+            <h1 class="hero-title">Smart Irrigation for<br>Sustainable Farming</h1>
+            <p class="hero-subtitle">Real-time ESP32 powered sensor monitoring, automated scheduling, and intelligent water management — all in one place.</p>
+            <div class="hero-actions">
+              <button class="btn btn-outline" style="background:rgba(255,255,255,0.2);color:white;border-color:rgba(255,255,255,0.4);" id="heroConnectBtn">
+                <i class="fa-solid fa-plug"></i> Connect Device
+              </button>
+              <button class="btn" style="background:rgba(255,255,255,0.95);color:#059669;font-weight:700;" id="heroOpenDashBtn">
+                <i class="fa-solid fa-gauge-high"></i> Open Dashboard
+              </button>
+            </div>
+          </div>
+          <div class="hero-illustration" aria-hidden="true">
+            <img class="irrigation-image" src="hero-illustration.png" alt="Smart Irrigation System">
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card emerald">
+            <div class="stat-icon-wrap"><i class="fa-solid fa-droplet"></i></div>
+            <div class="stat-value" id="statWaterSaved">0</div>
+            <div class="stat-label">Litres Water Saved</div>
+            <div class="stat-trend up"><i class="fa-solid fa-arrow-up"></i> 18.4%</div>
+          </div>
+          <div class="stat-card cyan">
+            <div class="stat-icon-wrap"><i class="fa-solid fa-faucet"></i></div>
+            <div class="stat-value" id="statActiveIrrigation">OFF</div>
+            <div class="stat-label">Active Irrigation</div>
+            <div class="stat-trend down" id="irrigationTrend"><i class="fa-solid fa-circle"></i> Standby</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-icon-wrap"><i class="fa-solid fa-temperature-half"></i></div>
+            <div class="stat-value" id="statMoisture">0%</div>
+            <div class="stat-label">Soil Moisture Level</div>
+            <div class="stat-trend up"><i class="fa-solid fa-arrow-up"></i> Optimal</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-icon-wrap"><i class="fa-solid fa-gear"></i></div>
+            <div class="stat-value" id="statPumpStatus">OFF</div>
+            <div class="stat-label">Pump Status</div>
+            <div class="stat-trend up" id="pumpTrend"><i class="fa-solid fa-circle"></i> Ready</div>
+          </div>
+        </div>
+
+        <!-- Device Visualizer + Quick Controls -->
+        <div class="main-side">
+          <!-- Visualizer -->
+          <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px 24px 12px; border-bottom: 1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+              <div class="panel-title" style="margin:0;">
+                <div class="panel-title-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                Live System Visualizer
+              </div>
+              <div class="status-indicator online" id="vizStatus">
+                <span class="led green" id="vizLed"></span>
+                <span id="vizStatusText">Standby</span>
+              </div>
+            </div>
+
+            <div class="device-viz" id="deviceViz">
+              <!-- Tank -->
+              <div class="tank-wrap">
+                <div class="tank" id="vizTank">
+                  <div class="tank-water" id="tankWater" style="height: 65%;">
+                    <div class="pipe-flow"></div>
+                  </div>
+                </div>
+                <div class="tank-label">Water Tank</div>
+                <div class="tank-level" id="tankLevelText">65%</div>
+              </div>
+
+              <!-- Pipe Horizontal -->
+              <div style="display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:68px;">
+                <div class="pipe-horizontal" id="pipeH1" style="width:50px;">
+                  <div class="pipe-flow" id="pipeFlow1"></div>
+                </div>
+              </div>
+
+              <!-- Pump -->
+              <div class="pump-wrap" style="padding-bottom: 30px;">
+                <div class="pump" id="vizPump">💧</div>
+                <div class="tank-label">Pump</div>
+              </div>
+
+              <!-- Pipe Horizontal 2 -->
+              <div style="display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:68px;">
+                <div class="pipe-horizontal" id="pipeH2" style="width:50px;">
+                  <div class="pipe-flow" id="pipeFlow2"></div>
+                </div>
+              </div>
+
+              <!-- Plant Section -->
+              <div class="plant-section" style="padding-bottom:0px;">
+                <div class="plant-icon" id="plantIcon">🌱</div>
+                <div class="drip-container" id="dripContainer">
+                  <div class="drip"></div>
+                  <div class="drip"></div>
+                  <div class="drip"></div>
+                </div>
+                <div class="soil-bar" id="soilBar">
+                  <div class="soil-moisture-overlay" id="soilMoistureOverlay" style="width:65%;"></div>
+                </div>
+                <div class="tank-label" style="margin-top:6px;">Crop & Soil</div>
+              </div>
+            </div>
+
+            <!-- Quick Controls -->
+            <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="startIrrigationBtn" onclick="window.aqr.startIrrigation()">
+                <i class="fa-solid fa-play"></i> Start Irrigation
+              </button>
+              <button class="btn btn-danger" id="stopIrrigationBtn" onclick="window.aqr.stopIrrigation()">
+                <i class="fa-solid fa-stop"></i> Stop
+              </button>
+              <button class="btn btn-outline" id="refreshStatusBtn" onclick="window.aqr.fetchStatus()">
+                <i class="fa-solid fa-rotate"></i> Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Metrics -->
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="card">
+              <div class="panel-title" style="margin-bottom:16px; font-size:15px;">
+                <div class="panel-title-icon" style="width:28px; height:28px; font-size:13px;"><i class="fa-solid fa-wifi"></i></div>
+                Device Status
+              </div>
+              <div class="settings-row">
+                <div><div class="settings-row-label">ESP32 State</div></div>
+                <div class="status-indicator online" id="esp32StateIndicator"><span class="led green"></span><span>Online</span></div>
+              </div>
+              <div class="settings-row">
+                <div><div class="settings-row-label">WiFi SSID</div></div>
+                <span style="font-size:13px; font-weight:600; color:var(--emerald-600);" id="wifiSsid">AquaFarm_2G</span>
+              </div>
+              <div class="settings-row">
+                <div><div class="settings-row-label">IP Address</div></div>
+                <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="deviceIp">192.168.1.42</span>
+              </div>
+              <div class="settings-row">
+                <div><div class="settings-row-label">Uptime</div></div>
+                <span style="font-size:13px; font-weight:600; color:var(--text-primary);" id="deviceUptime">2h 14m</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="panel-title" style="margin-bottom:16px; font-size:15px;">
+                <div class="panel-title-icon" style="width:28px; height:28px; font-size:13px;"><i class="fa-solid fa-signal"></i></div>
+                Sensor Health
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-label"><span>Moisture Sensor</span><span id="moistureSensorHealth">98%</span></div>
+                <div class="progress-track-linear"><div class="progress-fill-linear" id="moistureSensorBar" style="width:98%"></div></div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-label"><span>Flow Sensor</span><span id="flowSensorHealth">94%</span></div>
+                <div class="progress-track-linear"><div class="progress-fill-linear" id="flowSensorBar" style="width:94%"></div></div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-label"><span>Temperature</span><span id="tempSensorHealth">100%</span></div>
+                <div class="progress-track-linear"><div class="progress-fill-linear" id="tempSensorBar" style="width:100%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">Today's Moisture & Irrigation Timeline</div>
+              <div class="chart-subtitle">Soil moisture levels and irrigation events from the last 24 hours</div>
+            </div>
+            <span class="chart-badge">Live</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="dashboardChart"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ======================================================
+           PAGE: IRRIGATION CONTROL
+           ====================================================== -->
+      <section class="page-section" id="section-irrigation" aria-label="Irrigation control panel">
+        <div class="section-header">
+          <h2 class="section-title">💧 Smart Irrigation Control</h2>
+          <p class="section-subtitle">Configure parameters, generate FAO-56 schedules, and control the ESP32 pump directly.</p>
+        </div>
+
+        <div class="two-col">
+          <!-- Input Panel -->
+          <div class="irrigation-panel">
+            <div class="panel-title">
+              <div class="panel-title-icon"><i class="fa-solid fa-sliders"></i></div>
+              Irrigation Parameters
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label" for="cropType">🌾 Crop Type</label>
+                <select class="form-control" id="cropType">
+                  <option value="tomato">Tomato</option>
+                  <option value="wheat">Wheat</option>
+                  <option value="rice">Rice</option>
+                  <option value="onion">Onion</option>
+                  <option value="cotton">Cotton</option>
+                  <option value="maize" selected>Maize</option>
+                  <option value="sugarcane">Sugarcane</option>
+                  <option value="groundnut">Groundnut</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="soilType">🪨 Soil Type</label>
+                <select class="form-control" id="soilType">
+                  <option value="sandy">Sandy</option>
+                  <option value="loamy" selected>Loamy</option>
+                  <option value="clay">Clay</option>
+                  <option value="black">Black</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="weatherCond">☀️ Weather Condition</label>
+                <select class="form-control" id="weatherCond">
+                  <option value="sunny" selected>Sunny</option>
+                  <option value="cloudy">Cloudy</option>
+                  <option value="rainy">Rainy</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="season">🌤️ Season</label>
+                <select class="form-control" id="season">
+                  <option value="kharif" selected>Kharif</option>
+                  <option value="rabi">Rabi</option>
+                  <option value="summer">Summer</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="farmSize">📐 Farm Size (acres)</label>
+                <input type="number" class="form-control" id="farmSize" placeholder="e.g. 2.5" value="2" min="0.1" max="100" step="0.1" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="manualOverride">🚰 Manual Override (litres)</label>
+                <input type="number" class="form-control" id="manualOverride" placeholder="Leave blank for auto" min="0" max="10000" step="1" />
+              </div>
+            </div>
+
+            <div class="panel-actions">
+              <button class="btn btn-primary" id="generateScheduleBtn" onclick="window.aqr.generateSchedule()">
+                <i class="fa-solid fa-calendar-check"></i> Generate Schedule
+              </button>
+              <button class="btn btn-cyan" onclick="window.aqr.startIrrigation()">
+                <i class="fa-solid fa-play"></i> Start Irrigation
+              </button>
+              <button class="btn btn-danger" onclick="window.aqr.stopIrrigation()">
+                <i class="fa-solid fa-stop"></i> Stop Irrigation
+              </button>
+            </div>
+          </div>
+
+          <!-- Current Status -->
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="card">
+              <div class="panel-title" style="font-size:15px; margin-bottom:14px;">
+                <div class="panel-title-icon" style="width:28px; height:28px; font-size:13px;"><i class="fa-solid fa-gauge"></i></div>
+                Live Sensor Readings
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="text-align:center; padding:16px; background:var(--bg-secondary); border-radius:var(--radius-lg);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Soil Moisture</div>
+                  <div style="font-size:24px; font-weight:800; color:var(--emerald-600);" id="irrMoisture">--</div>
+                </div>
+                <div style="text-align:center; padding:16px; background:var(--bg-secondary); border-radius:var(--radius-lg);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Flow Rate</div>
+                  <div style="font-size:24px; font-weight:800; color:var(--cyan-600);" id="irrFlowRate">-- L/min</div>
+                </div>
+                <div style="text-align:center; padding:16px; background:var(--bg-secondary); border-radius:var(--radius-lg);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Water Delivered</div>
+                  <div style="font-size:24px; font-weight:800; color:var(--blue-600);" id="irrWaterDel">-- L</div>
+                </div>
+                <div style="text-align:center; padding:16px; background:var(--bg-secondary); border-radius:var(--radius-lg);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Pump State</div>
+                  <div style="font-size:18px; font-weight:800;" id="irrPumpState">
+                    <span class="status-indicator offline"><span class="led red"></span>OFF</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="panel-title" style="font-size:15px; margin-bottom:14px;">
+                <div class="panel-title-icon" style="width:28px; height:28px; font-size:13px;"><i class="fa-solid fa-circle-info"></i></div>
+                FAO-56 Formula
+              </div>
+              <div style="background:var(--bg-secondary); border-radius:var(--radius-lg); padding:14px 16px; font-size:13px; color:var(--text-secondary); line-height:1.7;">
+                <strong style="color:var(--text-primary); display:block; margin-bottom:6px;">Evapotranspiration:</strong>
+                <span style="font-family:monospace; font-size:15px; color:var(--emerald-700); font-weight:700;">ET<sub>c</sub> = K<sub>c</sub> × ET<sub>o</sub> × Soil × Weather</span>
+                <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border-color); display:grid; gap:4px;">
+                  <div><strong>K<sub>c</sub></strong> — Crop coefficient</div>
+                  <div><strong>ET<sub>o</sub></strong> — Reference evapotranspiration</div>
+                  <div><strong>Soil</strong> — Soil drainage factor</div>
+                  <div><strong>Weather</strong> — Weather demand factor</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Result -->
+        <div class="schedule-result-card" id="scheduleResultCard">
+          <div class="panel-title" style="margin-bottom:16px;">
+            <div class="panel-title-icon"><i class="fa-solid fa-calendar-week"></i></div>
+            <span id="scheduleTitle">7-Day Irrigation Schedule</span>
+          </div>
+
+          <!-- Recommendation banners -->
+          <div id="recommendationBanners"></div>
+
+          <!-- Summary stats -->
+          <div class="result-stats">
+            <div class="result-stat">
+              <div class="result-stat-value" id="schedEtc">—</div>
+              <div class="result-stat-label">ET<sub>c</sub> (mm/day)</div>
+            </div>
+            <div class="result-stat">
+              <div class="result-stat-value" id="schedWaterReq">—</div>
+              <div class="result-stat-label">Water Required (L)</div>
+            </div>
+            <div class="result-stat">
+              <div class="result-stat-value" id="schedDuration">—</div>
+              <div class="result-stat-label">Duration (min/day)</div>
+            </div>
+          </div>
+
+          <!-- Day cards -->
+          <div class="schedule-grid" id="scheduleGrid"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================
+           PAGE: SENSORS
+           ====================================================== -->
+      <section class="page-section" id="section-sensors" aria-label="Sensor monitoring">
+        <div class="section-header">
+          <h2 class="section-title">🔬 Live Sensor Monitoring</h2>
+          <p class="section-subtitle">Real-time readings from all ESP32-connected sensors with animated progress gauges.</p>
+        </div>
+
+        <div class="sensors-grid">
+          <!-- Soil Moisture -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--emerald-400); top:5px;"></div>
+            <div class="circular-progress-wrap">
+              <div class="circular-progress">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="progress-track" cx="60" cy="60" r="50"/>
+                  <circle class="progress-fill emerald" id="moistureCircle" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="110"/>
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value" id="moistureVal">65</span>
+                  <span class="progress-unit">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="sensor-label">🌱 Soil Moisture</div>
+            <div class="status-indicator online"><span class="led green"></span> Optimal</div>
+            <div class="sensor-warning-banner" id="moistureLowWarning" role="status" aria-live="polite" hidden>
+              <span class="sensor-warning-icon">⚠️</span>
+              <span>Water level is low</span>
+            </div>
+          </div>
+
+          <!-- Flow Rate -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--cyan-400); top:5px;"></div>
+            <div class="circular-progress-wrap">
+              <div class="circular-progress">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="progress-track" cx="60" cy="60" r="50"/>
+                  <circle class="progress-fill cyan" id="flowCircle" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="250"/>
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value" id="flowVal">0.0</span>
+                  <span class="progress-unit">L/m</span>
+                </div>
+              </div>
+            </div>
+            <div class="sensor-label">💧 Flow Rate</div>
+            <div class="status-indicator online" id="flowStatus"><span class="led green"></span> Standby</div>
+          </div>
+
+          <!-- Water Delivered -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--blue-500); top:5px;"></div>
+            <div class="circular-progress-wrap">
+              <div class="circular-progress">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="progress-track" cx="60" cy="60" r="50"/>
+                  <circle class="progress-fill cyan" id="waterDelCircle" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="314"/>
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value" id="waterDelVal">0</span>
+                  <span class="progress-unit">L</span>
+                </div>
+              </div>
+            </div>
+            <div class="sensor-label">🚿 Water Delivered</div>
+            <div class="status-indicator" id="waterDelStatus"><span class="led green"></span> <span id="waterDelStatusTxt">Ready</span></div>
+          </div>
+
+          <!-- Temperature -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--amber-400); top:5px;"></div>
+            <div class="circular-progress-wrap">
+              <div class="circular-progress">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="progress-track" cx="60" cy="60" r="50"/>
+                  <circle class="progress-fill amber" id="tempCircle" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="157"/>
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value" id="tempVal">29</span>
+                  <span class="progress-unit">°C</span>
+                </div>
+              </div>
+            </div>
+            <div class="sensor-label">🌡️ Temperature</div>
+            <div class="status-indicator warning"><span class="led amber"></span> High</div>
+          </div>
+
+          <!-- Humidity -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--cyan-400); top:5px;"></div>
+            <div class="circular-progress-wrap">
+              <div class="circular-progress">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle class="progress-track" cx="60" cy="60" r="50"/>
+                  <circle class="progress-fill emerald" id="humidityCircle" cx="60" cy="60" r="50"
+                    stroke-dasharray="314" stroke-dashoffset="160"/>
+                </svg>
+                <div class="progress-center">
+                  <span class="progress-value" id="humidityVal">49</span>
+                  <span class="progress-unit">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="sensor-label">💨 Air Humidity</div>
+            <div class="status-indicator online"><span class="led green"></span> Good</div>
+          </div>
+
+          <!-- Pump State -->
+          <div class="sensor-card">
+            <div class="sensor-glow" style="background:var(--emerald-500); top:5px;"></div>
+            <div style="font-size:64px; margin:8px 0;" id="pumpEmoji">⚙️</div>
+            <div class="sensor-label">⚙️ Pump Status</div>
+            <div class="status-indicator offline" id="pumpSensorStatus">
+              <span class="led red" id="pumpLed"></span>
+              <span id="pumpSensorTxt">Idle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Readings Table -->
+        <div class="card" style="margin-top:4px;">
+          <div class="panel-title" style="font-size:15px; margin-bottom:16px;">
+            <div class="panel-title-icon" style="width:28px; height:28px; font-size:13px;"><i class="fa-solid fa-table"></i></div>
+            Live Readings Summary
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th>Sensor</th>
+                  <th>Current Value</th>
+                  <th>Min (24h)</th>
+                  <th>Max (24h)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><i class="fa-solid fa-seedling" style="color:var(--emerald-500); margin-right:8px;"></i>Soil Moisture</td>
+                  <td id="tblMoisture">65%</td>
+                  <td>52%</td>
+                  <td>78%</td>
+                  <td><span class="log-badge success">Optimal</span></td>
+                </tr>
+                <tr>
+                  <td><i class="fa-solid fa-water" style="color:var(--cyan-500); margin-right:8px;"></i>Flow Rate</td>
+                  <td id="tblFlow">0.0 L/min</td>
+                  <td>0.0 L/min</td>
+                  <td>4.2 L/min</td>
+                  <td><span class="log-badge info">Standby</span></td>
+                </tr>
+                <tr>
+                  <td><i class="fa-solid fa-temperature-half" style="color:var(--amber-500); margin-right:8px;"></i>Temperature</td>
+                  <td id="tblTemp">29°C</td>
+                  <td>22°C</td>
+                  <td>34°C</td>
+                  <td><span class="log-badge warning">High</span></td>
+                </tr>
+                <tr>
+                  <td><i class="fa-solid fa-droplet" style="color:var(--blue-500); margin-right:8px;"></i>Air Humidity</td>
+                  <td id="tblHumidity">49%</td>
+                  <td>38%</td>
+                  <td>72%</td>
+                  <td><span class="log-badge success">Good</span></td>
+                </tr>
+                <tr>
+                  <td><i class="fa-solid fa-gear" style="color:var(--text-muted); margin-right:8px;"></i>Pump</td>
+                  <td id="tblPump">Idle</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td><span class="log-badge" id="pumpBadge">Standby</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================
+           PAGE: ANALYTICS
+           ====================================================== -->
+      <section class="page-section" id="section-analytics" aria-label="Water analytics and charts">
+        <div class="section-header">
+          <h2 class="section-title">📊 Water Analytics</h2>
+          <p class="section-subtitle">Interactive charts visualizing water usage, irrigation history, and sensor trends.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Weekly Water Usage</div>
+                <div class="chart-subtitle">Litres consumed per day over the past 7 days</div>
+              </div>
+              <span class="chart-badge">7 Days</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="waterUsageChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Smart vs Flood Irrigation</div>
+                <div class="chart-subtitle">Comparative water efficiency analysis</div>
+              </div>
+              <span class="chart-badge">vs Flood</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="comparisonChart"></canvas></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Soil Moisture Trend</div>
+                <div class="chart-subtitle">Last 24 hours — live sensor data</div>
+              </div>
+              <span class="chart-badge">Live</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="moistureTrendChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Monthly Irrigation Summary</div>
+                <div class="chart-subtitle">Total volume irrigated per week this month</div>
+              </div>
+              <span class="chart-badge">Monthly</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="monthlyChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================
+           PAGE: CROP SCHEDULER
+           ====================================================== -->
+      <section class="page-section" id="section-scheduler" aria-label="Crop scheduler">
+        <div class="section-header">
+          <h2 class="section-title">🗓️ Crop Scheduler</h2>
+          <p class="section-subtitle">FAO-56 based intelligent irrigation planning for all major crops.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="irrigation-panel" style="margin-bottom:0;">
+            <div class="panel-title">
+              <div class="panel-title-icon"><i class="fa-solid fa-seedling"></i></div>
+              Schedule Configuration
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label" for="schedCropType">Crop Type</label>
+                <select class="form-control" id="schedCropType">
+                  <option value="tomato">Tomato</option>
+                  <option value="wheat">Wheat</option>
+                  <option value="rice">Rice</option>
+                  <option value="onion">Onion</option>
+                  <option value="cotton">Cotton</option>
+                  <option value="maize" selected>Maize</option>
+                  <option value="sugarcane">Sugarcane</option>
+                  <option value="groundnut">Groundnut</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="schedSoilType">Soil Type</label>
+                <select class="form-control" id="schedSoilType">
+                  <option value="sandy">Sandy</option>
+                  <option value="loamy" selected>Loamy</option>
+                  <option value="clay">Clay</option>
+                  <option value="black">Black</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="schedWeather">Weather</label>
+                <select class="form-control" id="schedWeather">
+                  <option value="sunny" selected>Sunny</option>
+                  <option value="cloudy">Cloudy</option>
+                  <option value="rainy">Rainy</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="schedFarmSize">Farm Size (acres)</label>
+                <input type="number" class="form-control" id="schedFarmSize" value="2" min="0.1" max="100" step="0.1"/>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="window.aqr.generateSchedulerSchedule()" style="margin-top:8px;">
+              <i class="fa-solid fa-calendar-check"></i> Generate 7-Day Plan
+            </button>
+          </div>
+
+          <!-- Crop Reference Table -->
+          <div class="card" style="overflow:auto;">
+            <div class="panel-title" style="font-size:15px; margin-bottom:14px;">
+              <div class="panel-title-icon" style="width:28px;height:28px;font-size:13px;"><i class="fa-solid fa-book"></i></div>
+              Crop Kc Reference
+            </div>
+            <table class="logs-table" style="font-size:12px;">
+              <thead>
+                <tr><th>Crop</th><th>Kc (Mid)</th><th>ET<sub>o</sub></th><th>Season</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>🍅 Tomato</td><td>1.15</td><td>5.5</td><td>Kharif</td></tr>
+                <tr><td>🌾 Wheat</td><td>1.15</td><td>4.5</td><td>Rabi</td></tr>
+                <tr><td>🌾 Rice</td><td>1.20</td><td>6.0</td><td>Kharif</td></tr>
+                <tr><td>🧅 Onion</td><td>1.05</td><td>4.0</td><td>Rabi</td></tr>
+                <tr><td>🌿 Cotton</td><td>1.20</td><td>5.5</td><td>Kharif</td></tr>
+                <tr><td>🌽 Maize</td><td>1.20</td><td>5.0</td><td>Kharif</td></tr>
+                <tr><td>🎋 Sugarcane</td><td>1.25</td><td>6.5</td><td>Kharif</td></tr>
+                <tr><td>🥜 Groundnut</td><td>1.15</td><td>5.0</td><td>Kharif</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="schedule-result-card" id="schedPageResultCard" style="margin-top:24px;">
+          <div class="panel-title" style="margin-bottom:16px;">
+            <div class="panel-title-icon"><i class="fa-solid fa-calendar-week"></i></div>
+            Generated 7-Day Irrigation Plan
+          </div>
+          <div id="schedPageBanners"></div>
+          <div class="result-stats">
+            <div class="result-stat"><div class="result-stat-value" id="schedPageEtc">—</div><div class="result-stat-label">ET<sub>c</sub> (mm/day)</div></div>
+            <div class="result-stat"><div class="result-stat-value" id="schedPageWater">—</div><div class="result-stat-label">Water Required (L)</div></div>
+            <div class="result-stat"><div class="result-stat-value" id="schedPageDur">—</div><div class="result-stat-label">Duration (min/day)</div></div>
+          </div>
+          <div class="schedule-grid" id="schedPageGrid"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================
+           PAGE: WATER LOGS
+           ====================================================== -->
+      <section class="page-section" id="section-logs" aria-label="Water logs and notifications">
+        <div class="section-header">
+          <h2 class="section-title">📋 Water Logs & Notifications</h2>
+          <p class="section-subtitle">Complete system event history and real-time alert notifications.</p>
+        </div>
+
+        <!-- Notifications Panel -->
+        <div class="notif-panel-card">
+          <div class="notif-panel-header">
+            <div class="notif-panel-title"><i class="fa-solid fa-bell" style="margin-right:8px; color:var(--emerald-600);"></i> System Notifications</div>
+            <button class="btn btn-outline btn-sm" onclick="window.aqr.clearNotifications()">Clear All</button>
+          </div>
+          <div class="notif-list" id="notifList">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="logs-table-wrap">
+          <div style="padding:18px 24px; border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+            <div class="notif-panel-title"><i class="fa-solid fa-clock-rotate-left" style="margin-right:8px; color:var(--cyan-600);"></i> ESP32 Activity Logs</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="window.aqr.refreshLogs()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+              <button class="btn btn-primary btn-sm" onclick="window.aqr.exportLogs()"><i class="fa-solid fa-download"></i> Export</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event</th>
+                  <th>Type</th>
+                  <th>Duration</th>
+                  <th>Volume (L)</th>
+                  <th>Trigger</th>
+                </tr>
+              </thead>
+              <tbody id="logsTableBody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================
+           PAGE: SETTINGS
+           ====================================================== -->
+      <section class="page-section" id="section-settings" aria-label="System settings">
+        <div class="section-header">
+          <h2 class="section-title">⚙️ System Settings</h2>
+          <p class="section-subtitle">Configure WiFi, sensors, notifications, and system preferences.</p>
+        </div>
+
+        <div class="settings-grid">
+
+          <!-- WiFi Setup -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-solid fa-wifi"></i></div>
+              WiFi Configuration
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="wifiSsidInput">Network SSID</label>
+              <input type="text" class="form-control" id="wifiSsidInput" placeholder="e.g. AquaFarm_2G" value="AquaFarm_2G"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="wifiPassInput">Password</label>
+              <input type="password" class="form-control" id="wifiPassInput" placeholder="••••••••"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="deviceIpInput">ESP32 IP Address</label>
+              <input type="text" class="form-control" id="deviceIpInput" placeholder="e.g. 192.168.1.42" value="192.168.1.42"/>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="window.aqr.saveWifi()"><i class="fa-solid fa-floppy-disk"></i> Save WiFi</button>
+          </div>
+
+          <!-- Telegram Notifications -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-brands fa-telegram"></i></div>
+              Telegram Bot Integration
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="telegramToken">Bot Token</label>
+              <input type="text" class="form-control" id="telegramToken" placeholder="123456789:ABCDefgh..."/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="telegramChatId">Chat ID</label>
+              <input type="text" class="form-control" id="telegramChatId" placeholder="e.g. -100123456789"/>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-row-label">Send Irrigation Alerts</div></div>
+              <label class="switch"><input type="checkbox" id="telegramIrrAlerts" checked/><div class="switch-track"></div></label>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-row-label">Low Water Warnings</div></div>
+              <label class="switch"><input type="checkbox" id="telegramWaterAlert" checked/><div class="switch-track"></div></label>
+            </div>
+            <button class="btn btn-cyan btn-sm" style="margin-top:12px;" onclick="window.aqr.testTelegram()"><i class="fa-solid fa-paper-plane"></i> Test Connection</button>
+          </div>
+
+          <!-- Device Calibration -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+              Sensor Calibration
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="moistureDry">Moisture Dry Value (ADC)</label>
+              <input type="number" class="form-control" id="moistureDry" value="3200" min="0" max="4095"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="moistureWet">Moisture Wet Value (ADC)</label>
+              <input type="number" class="form-control" id="moistureWet" value="1200" min="0" max="4095"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="flowFactor">Flow Sensor Factor (pulses/L)</label>
+              <input type="number" class="form-control" id="flowFactor" value="450" min="1" max="10000"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="irrigThreshold">Auto-Irrigation Threshold (%)</label>
+              <input type="number" class="form-control" id="irrigThreshold" value="30" min="10" max="90"/>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="window.aqr.saveCalibration()"><i class="fa-solid fa-floppy-disk"></i> Save Calibration</button>
+          </div>
+
+          <!-- Notification Settings -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-solid fa-bell"></i></div>
+              Notification Preferences
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Irrigation Started</div>
+                <div class="settings-row-desc">Alert when pump activates</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Irrigation Completed</div>
+                <div class="settings-row-desc">Alert when schedule finishes</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Low Moisture Warning</div>
+                <div class="settings-row-desc">Alert below threshold</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Sensor Error Alerts</div>
+                <div class="settings-row-desc">Notify on sensor failures</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Low Water Tank Alert</div>
+                <div class="settings-row-desc">Alert when tank below 20%</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+          </div>
+
+          <!-- Appearance -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-solid fa-palette"></i></div>
+              Appearance
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Dark Mode</div>
+                <div class="settings-row-desc">Switch to dark interface</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="settingsDarkMode" onchange="window.aqr.toggleThemeFromSettings(this)"/>
+                <div class="switch-track"></div>
+              </label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Compact Sidebar</div>
+                <div class="settings-row-desc">Collapse sidebar by default</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="compactSidebar" onchange="window.aqr.toggleCompactSidebar(this)"/>
+                <div class="switch-track"></div>
+              </label>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Animations</div>
+                <div class="settings-row-desc">Enable UI animations</div>
+              </div>
+              <label class="switch"><input type="checkbox" checked/><div class="switch-track"></div></label>
+            </div>
+          </div>
+
+          <!-- Device Info -->
+          <div class="settings-card">
+            <div class="settings-card-title">
+              <div class="settings-icon"><i class="fa-solid fa-microchip"></i></div>
+              Device Information
+            </div>
+            <div class="device-info-grid">
+              <div class="device-info-item">
+                <div class="device-info-label">Firmware</div>
+                <div class="device-info-value">v2.4.1</div>
+              </div>
+              <div class="device-info-item">
+                <div class="device-info-label">Hardware</div>
+                <div class="device-info-value">ESP32-S3</div>
+              </div>
+              <div class="device-info-item">
+                <div class="device-info-label">MAC Address</div>
+                <div class="device-info-value" style="font-size:11px;">A4:CF:12:D8:E1:2F</div>
+              </div>
+              <div class="device-info-item">
+                <div class="device-info-label">Free Heap</div>
+                <div class="device-info-value" id="freeHeap">214 KB</div>
+              </div>
+              <div class="device-info-item">
+                <div class="device-info-label">RSSI</div>
+                <div class="device-info-value" id="rssiVal">-52 dBm</div>
+              </div>
+              <div class="device-info-item">
+                <div class="device-info-label">Platform</div>
+                <div class="device-info-value">AquaRoot v1.0</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" onclick="window.aqr.rebootDevice()"><i class="fa-solid fa-power-off"></i> Reboot</button>
+              <button class="btn btn-danger btn-sm" onclick="window.aqr.factoryReset()"><i class="fa-solid fa-trash"></i> Factory Reset</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div><!-- /main-wrapper -->
+  </div><!-- /app-wrapper -->
+
+  <script src="script.js"></script>
+</body>
+</html>
