@@ -7,6 +7,17 @@
 'use strict';
 
 /* ============================================================
+   SUPABASE CONFIG
+   Paste your actual Supabase project URL and anon/publishable key below.
+   ============================================================ */
+const SUPABASE_URL = "PASTE_URL_HERE"; // Paste your Supabase project URL here.
+const SUPABASE_ANON_KEY = "PASTE_KEY_HERE"; // Paste your Supabase anon/publishable key here.
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_CONFIG_READY =
+  !SUPABASE_URL.includes('PASTE_URL_HERE') &&
+  !SUPABASE_ANON_KEY.includes('PASTE_KEY_HERE');
+
+/* ============================================================
    FAO-56 IRRIGATION ENGINE DATA
    ============================================================ */
 const FAO56 = {
@@ -849,6 +860,300 @@ const UIUpdater = {
 };
 
 /* ============================================================
+   SUPABASE LIVE DASHBOARD
+   ============================================================ */
+const SupabaseDashboard = (() => {
+  let sensorChannel = null;
+  let controlChannel = null;
+  let latestSensorRow = null;
+  let latestControlRow = null;
+  let freshnessTimer = null;
+  let isUpdatingControl = false;
+
+  function isTrue(value) {
+    return value === true || value === 1 || value === '1' || value === 'true';
+  }
+
+  function safeNumber(value, fallback = 0) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  }
+
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function setHidden(id, hidden) {
+    const el = document.getElementById(id);
+    if (el) el.hidden = hidden;
+  }
+
+  function formatTimestamp(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
+
+  function updateFreshnessBadge() {
+    const badge = document.getElementById('supabaseFreshnessBadge');
+    if (!badge || !latestSensorRow?.created_at) return;
+
+    const createdAt = new Date(latestSensorRow.created_at);
+    if (Number.isNaN(createdAt.getTime())) return;
+
+    const ageMs = Date.now() - createdAt.getTime();
+    const stale = ageMs > 20000;
+
+    badge.textContent = stale ? 'Stale' : 'Live';
+    badge.className = `log-badge ${stale ? 'warning' : 'success'}`;
+  }
+
+  function updateManualRelayButton() {
+    const btn = document.getElementById('startIrrigationBtn');
+    if (!btn) return;
+
+    const manualRelay = isTrue(latestControlRow?.manual_relay);
+    const cutoffActive = isTrue(latestSensorRow?.cutoff_active);
+    const isStartState = !manualRelay;
+
+    btn.disabled = cutoffActive || isUpdatingControl;
+    btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
+    btn.classList.remove('btn-primary', 'btn-danger');
+    btn.classList.add(isStartState ? 'btn-primary' : 'btn-danger');
+    btn.innerHTML = isStartState
+      ? '<i class="fa-solid fa-play"></i> Start Watering'
+      : '<i class="fa-solid fa-stop"></i> Stop Watering';
+  }
+
+  function renderControlState() {
+    const manualRelay = isTrue(latestControlRow?.manual_relay);
+    const cutoffActive = isTrue(latestSensorRow?.cutoff_active);
+
+    updateManualRelayButton();
+
+    setHidden('supabaseCutoffBanner', !cutoffActive);
+  }
+
+  function renderSensorState(row) {
+    if (!row) return;
+
+    latestSensorRow = row;
+    const moisture = Math.max(0, Math.min(100, safeNumber(row.soil_moisture)));
+    const relayActive = isTrue(row.relay_state);
+    const cutoffActive = isTrue(row.cutoff_active);
+    const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+    const stale = !Number.isNaN(createdAt.getTime()) && (Date.now() - createdAt.getTime()) > 20000;
+
+    setText('statMoisture', `${Math.round(moisture)}%`);
+    setText('moistureVal', `${Math.round(moisture)}`);
+    setText('tblMoisture', `${Math.round(moisture)}%`);
+    setText('supabaseSoilText', `${Math.round(moisture)}%`);
+    setText('supabaseLastUpdated', formatTimestamp(createdAt));
+
+    const fill = document.getElementById('supabaseSoilFill');
+    if (fill) fill.style.width = `${moisture}%`;
+
+    setHidden('supabaseLowBadge', moisture >= 30);
+    setHidden('moistureLowWarning', moisture >= 30);
+    setHidden('supabaseCutoffBanner', !cutoffActive);
+
+    const relayBadge = document.getElementById('supabaseRelayBadge');
+    if (relayBadge) {
+      relayBadge.className = `status-indicator ${relayActive ? 'online' : 'offline'}`;
+      relayBadge.innerHTML = relayActive
+        ? '<span class="led green"></span><span>Pump ON</span>'
+        : '<span class="led red"></span><span>Pump OFF</span>';
+    }
+
+    const lowBadge = document.getElementById('supabaseLowBadge');
+    if (lowBadge) {
+      lowBadge.textContent = '⚠️ Water level is low';
+      lowBadge.className = 'log-badge warning';
+    }
+
+    const cutoffBanner = document.getElementById('supabaseCutoffBanner');
+    if (cutoffBanner) {
+      cutoffBanner.innerHTML = '<span class="sensor-warning-icon">🔒</span><span>Soil fully saturated — pump locked off</span>';
+    }
+
+    const lowWarning = document.getElementById('moistureLowWarning');
+    if (lowWarning) {
+      lowWarning.hidden = moisture >= 30;
+    }
+
+    updateFreshnessBadge();
+    renderControlState();
+
+    // Keep the rest of the dashboard pump visuals aligned with the live relay state.
+    UIUpdater.updatePumpState(relayActive);
+  }
+
+  function clearChannels() {
+    if (sensorChannel) {
+      supabase.removeChannel(sensorChannel);
+      sensorChannel = null;
+    }
+    if (controlChannel) {
+      supabase.removeChannel(controlChannel);
+      controlChannel = null;
+    }
+  }
+
+  async function fetchLatestSensorRow() {
+    const { data, error } = await supabase
+      .from('sensor_readings')
+      .select('soil_moisture, relay_state, cutoff_active, created_at')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  }
+
+  async function fetchControlRow() {
+    const { data, error } = await supabase
+      .from('device_control')
+      .select('id, manual_relay')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  }
+
+  async function refresh() {
+    if (!SUPABASE_CONFIG_READY) {
+      console.warn('[SupabaseDashboard] Add your Supabase URL and anon key to enable live data.');
+      return false;
+    }
+
+    try {
+      const [sensorRow, controlRow] = await Promise.all([
+        fetchLatestSensorRow(),
+        fetchControlRow(),
+      ]);
+
+      latestSensorRow = sensorRow;
+      latestControlRow = controlRow;
+
+      if (sensorRow) renderSensorState(sensorRow);
+      else updateFreshnessBadge();
+
+      if (controlRow) renderControlState();
+      updateManualRelayButton();
+      return true;
+    } catch (error) {
+      console.error('[SupabaseDashboard] Refresh failed:', error);
+      Toast.show('error', 'Supabase Sync Failed', 'Check your URL, key, and table permissions.');
+      return false;
+    }
+  }
+
+  function subscribe() {
+    if (!SUPABASE_CONFIG_READY) return;
+
+    clearChannels();
+
+    sensorChannel = supabase
+      .channel('aquaroot-sensor-readings')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sensor_readings' },
+        payload => {
+          latestSensorRow = payload.new;
+          renderSensorState(payload.new);
+        },
+      )
+      .subscribe();
+
+    controlChannel = supabase
+      .channel('aquaroot-device-control')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'device_control', filter: 'id=eq.1' },
+        payload => {
+          latestControlRow = payload.new;
+          renderControlState();
+        },
+      )
+      .subscribe();
+  }
+
+  function startFreshnessTimer() {
+    if (freshnessTimer) clearInterval(freshnessTimer);
+    freshnessTimer = setInterval(updateFreshnessBadge, 1000);
+  }
+
+  async function setManualRelay(nextValue) {
+    if (!SUPABASE_CONFIG_READY) {
+      Toast.show('warning', 'Supabase Not Configured', 'Paste your project URL and anon key first.');
+      return;
+    }
+
+    if (isTrue(latestSensorRow?.cutoff_active)) {
+      Toast.show('warning', 'Pump Locked Off', 'Soil is fully saturated right now.');
+      return;
+    }
+
+    if (isUpdatingControl) return;
+
+    isUpdatingControl = true;
+    updateManualRelayButton();
+
+    try {
+      const { error } = await supabase
+        .from('device_control')
+        .update({ manual_relay: nextValue })
+        .eq('id', 1);
+
+      if (error) throw error;
+
+      latestControlRow = { ...(latestControlRow || { id: 1 }), manual_relay: nextValue };
+      renderControlState();
+      Toast.show(
+        'success',
+        nextValue ? '💧 Watering Started' : '⏹️ Watering Stopped',
+        nextValue ? 'Manual relay has been enabled.' : 'Manual relay has been disabled.',
+      );
+    } catch (error) {
+      console.error('[SupabaseDashboard] Manual relay update failed:', error);
+      Toast.show('error', 'Relay Update Failed', 'Could not update device_control.');
+      await refresh();
+    } finally {
+      isUpdatingControl = false;
+      updateManualRelayButton();
+    }
+  }
+
+  return {
+    init() {
+      startFreshnessTimer();
+      refresh();
+      subscribe();
+    },
+    refresh,
+    setManualRelay,
+    toggleManualRelay() {
+      setManualRelay(!isTrue(latestControlRow?.manual_relay));
+    },
+    startWatering() {
+      setManualRelay(true);
+    },
+    stopWatering() {
+      setManualRelay(false);
+    },
+  };
+})();
+
+/* ============================================================
    SCHEDULE RENDERER
    ============================================================ */
 function renderSchedule(result, gridId, bannersId, etcId, waterReqId, durId) {
@@ -958,16 +1263,9 @@ const AquaRoot = (() => {
     // Animate water saved counter
     animateCounter('statWaterSaved', waterSavedCount, 1500);
 
-    // Fetch initial status
-    const res = await ESP32Api.getStatus();
-    if (res.ok) UIUpdater.update(res.data);
-
     // Load logs
     const logsRes = await ESP32Api.getLogs();
     if (logsRes.ok) renderLogsTable(logsRes.data);
-
-    // Start live polling
-    startPolling();
 
     // Increment water saved every 30s
     setInterval(() => {
@@ -982,6 +1280,7 @@ const AquaRoot = (() => {
       this.initTheme();
       Notifications.init();
       Charts.initAll();
+      SupabaseDashboard.init();
       initialLoad();
       this.bindNotifBtn();
       console.log('%c🌱 AquaRoot Dashboard Ready', 'color:#10b981; font-size:14px; font-weight:700;');
@@ -1150,57 +1449,31 @@ const AquaRoot = (() => {
       });
     },
 
-    /* ---- ESP32 API Actions ---- */
+    /* ---- Supabase Relay Actions ---- */
     async startIrrigation() {
-      const btn = document.getElementById('startIrrigationBtn');
-      if (btn) { btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Starting…'; btn.disabled = true; }
-
-      try {
-        const res = await ESP32Api.start();
-        if (res.ok) {
-          Toast.show('success', '💧 Irrigation Started', 'Pump is now active. Water flowing to crops.');
-          Notifications.add('success', 'Irrigation Started', 'Pump activated. Water is now flowing to your crops.');
-          const status = await ESP32Api.getStatus();
-          if (status.ok) UIUpdater.update(status.data);
-        } else {
-          Toast.show('warning', 'Already Running', res.msg);
-        }
-      } catch (e) {
-        Toast.show('error', 'Connection Error', 'Unable to reach ESP32 device.');
-      }
-
-      if (btn) { btn.innerHTML = '<i class="fa-solid fa-play"></i> Start Irrigation'; btn.disabled = false; }
+      await SupabaseDashboard.setManualRelay(true);
     },
 
     async stopIrrigation() {
-      try {
-        const res = await ESP32Api.stop();
-        if (res.ok) {
-          Toast.show('info', '⏹️ Irrigation Stopped', `${res.waterDelivered?.toFixed(1) || 0}L delivered in this session.`);
-          Notifications.add('info', 'Irrigation Completed', `Session ended. ${res.waterDelivered?.toFixed(1) || 0}L water delivered.`);
-          const status = await ESP32Api.getStatus();
-          if (status.ok) UIUpdater.update(status.data);
-        } else {
-          Toast.show('warning', 'Not Running', res.msg);
-        }
-      } catch (e) {
-        Toast.show('error', 'Connection Error', 'Unable to reach ESP32 device.');
-      }
+      await SupabaseDashboard.setManualRelay(false);
     },
 
     async fetchStatus() {
       const btn = document.getElementById('refreshStatusBtn');
       if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
       try {
-        const res = await ESP32Api.getStatus();
-        if (res.ok) {
-          UIUpdater.update(res.data);
-          Toast.show('success', '✅ Status Refreshed', 'All sensor readings updated.');
+        const ok = await SupabaseDashboard.refresh();
+        if (ok) {
+          Toast.show('success', '✅ Status Refreshed', 'Live Supabase readings updated.');
         }
       } catch (e) {
-        Toast.show('error', 'Refresh Failed', 'Unable to connect to ESP32.');
+        Toast.show('error', 'Refresh Failed', 'Unable to reach Supabase.');
       }
       if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Refresh';
+    },
+
+    toggleManualRelay() {
+      SupabaseDashboard.toggleManualRelay();
     },
 
     /* ---- FAO-56 Schedule Generation ---- */
@@ -1313,10 +1586,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial toast welcome
   setTimeout(() => {
-    Toast.show('success', '🌱 AquaRoot Connected', 'ESP32 device is online and transmitting data.');
+    Toast.show('success', '🌱 AquaRoot Connected', 'Live telemetry is streaming from Supabase.');
   }, 800);
 
   setTimeout(() => {
-    Toast.show('info', '💧 Auto-Monitoring Active', 'Sensor readings update every 3 seconds.');
+    Toast.show('info', '💧 Auto-Monitoring Active', 'Sensor readings update in realtime via Supabase.');
   }, 2000);
 });

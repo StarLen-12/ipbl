@@ -1270,6 +1270,21 @@ body.sidebar-open-mobile .mobile-section-nav {
   box-shadow: 0 8px 25px rgba(239, 68, 68, 0.45);
 }
 
+.btn:disabled,
+.btn.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  filter: saturate(0.75);
+}
+
+.btn:disabled:hover,
+.btn.is-disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .btn-outline {
   background: var(--bg-card);
   color: var(--text-secondary);
