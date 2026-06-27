@@ -1285,6 +1285,24 @@ body.sidebar-open-mobile .mobile-section-nav {
   box-shadow: none;
 }
 
+.supabase-control-btn {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.supabase-control-error {
+  flex-basis: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--red-500);
+  margin-top: 2px;
+}
+
+#supabaseMoistureError {
+  margin-top: 8px;
+}
+
 .btn-outline {
   background: var(--bg-card);
   color: var(--text-secondary);

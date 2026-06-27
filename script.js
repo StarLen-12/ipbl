@@ -12,10 +12,12 @@
    ============================================================ */
 const SUPABASE_URL = "PASTE_URL_HERE"; // Paste your Supabase project URL here.
 const SUPABASE_ANON_KEY = "PASTE_KEY_HERE"; // Paste your Supabase anon/publishable key here.
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SUPABASE_CONFIG_READY =
   !SUPABASE_URL.includes('PASTE_URL_HERE') &&
   !SUPABASE_ANON_KEY.includes('PASTE_KEY_HERE');
+const supabaseClient = SUPABASE_CONFIG_READY
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 /* ============================================================
    FAO-56 IRRIGATION ENGINE DATA
@@ -889,6 +891,32 @@ const SupabaseDashboard = (() => {
     if (el) el.hidden = hidden;
   }
 
+  function showControlError(message) {
+    const el = document.getElementById('supabaseControlError');
+    if (!el) return;
+    if (!message) {
+      el.textContent = '';
+      el.hidden = true;
+      return;
+    }
+
+    el.textContent = `Error: ${message}`;
+    el.hidden = false;
+  }
+
+  function showMoistureError(message) {
+    const el = document.getElementById('supabaseMoistureError');
+    if (!el) return;
+    if (!message) {
+      el.textContent = '';
+      el.hidden = true;
+      return;
+    }
+
+    el.textContent = `Error: ${message}`;
+    el.hidden = false;
+  }
+
   function formatTimestamp(value) {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '--';
@@ -933,6 +961,18 @@ const SupabaseDashboard = (() => {
       : '<i class="fa-solid fa-stop"></i> Stop Watering';
   }
 
+  function bindControlButton() {
+    const btn = document.getElementById('startIrrigationBtn');
+    if (!btn || btn.dataset.supabaseBound === '1') return;
+
+    btn.dataset.supabaseBound = '1';
+    btn.addEventListener('click', async () => {
+      const newValue = !isTrue(latestControlRow?.manual_relay);
+      console.log('Button clicked, new value:', newValue);
+      await setManualRelay(newValue);
+    });
+  }
+
   function renderControlState() {
     const manualRelay = isTrue(latestControlRow?.manual_relay);
     const cutoffActive = isTrue(latestSensorRow?.cutoff_active);
@@ -945,6 +985,7 @@ const SupabaseDashboard = (() => {
   function renderSensorState(row) {
     if (!row) return;
 
+    showMoistureError('');
     latestSensorRow = row;
     const moisture = Math.max(0, Math.min(100, safeNumber(row.soil_moisture)));
     const relayActive = isTrue(row.relay_state);
@@ -998,28 +1039,30 @@ const SupabaseDashboard = (() => {
 
   function clearChannels() {
     if (sensorChannel) {
-      supabase.removeChannel(sensorChannel);
+      supabaseClient.removeChannel(sensorChannel);
       sensorChannel = null;
     }
     if (controlChannel) {
-      supabase.removeChannel(controlChannel);
+      supabaseClient.removeChannel(controlChannel);
       controlChannel = null;
     }
   }
 
   async function fetchLatestSensorRow() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('sensor_readings')
-      .select('soil_moisture, relay_state, cutoff_active, created_at')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(1);
+
+    console.log('Fetched sensor data:', data, error);
 
     if (error) throw error;
     return data?.[0] || null;
   }
 
   async function fetchControlRow() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('device_control')
       .select('id, manual_relay')
       .eq('id', 1)
@@ -1052,6 +1095,7 @@ const SupabaseDashboard = (() => {
       return true;
     } catch (error) {
       console.error('[SupabaseDashboard] Refresh failed:', error);
+      showMoistureError(error?.message || String(error));
       Toast.show('error', 'Supabase Sync Failed', 'Check your URL, key, and table permissions.');
       return false;
     }
@@ -1062,7 +1106,7 @@ const SupabaseDashboard = (() => {
 
     clearChannels();
 
-    sensorChannel = supabase
+    sensorChannel = supabaseClient
       .channel('aquaroot-sensor-readings')
       .on(
         'postgres_changes',
@@ -1074,7 +1118,7 @@ const SupabaseDashboard = (() => {
       )
       .subscribe();
 
-    controlChannel = supabase
+    controlChannel = supabaseClient
       .channel('aquaroot-device-control')
       .on(
         'postgres_changes',
@@ -1095,24 +1139,29 @@ const SupabaseDashboard = (() => {
   async function setManualRelay(nextValue) {
     if (!SUPABASE_CONFIG_READY) {
       Toast.show('warning', 'Supabase Not Configured', 'Paste your project URL and anon key first.');
+      showControlError('Supabase is not configured yet.');
       return;
     }
 
     if (isTrue(latestSensorRow?.cutoff_active)) {
       Toast.show('warning', 'Pump Locked Off', 'Soil is fully saturated right now.');
+      showControlError('Soil is fully saturated. Pump is locked off.');
       return;
     }
 
     if (isUpdatingControl) return;
 
+    showControlError('');
     isUpdatingControl = true;
     updateManualRelayButton();
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabaseClient
         .from('device_control')
         .update({ manual_relay: nextValue })
         .eq('id', 1);
+
+      console.log('Supabase update result:', data, error);
 
       if (error) throw error;
 
@@ -1125,6 +1174,7 @@ const SupabaseDashboard = (() => {
       );
     } catch (error) {
       console.error('[SupabaseDashboard] Manual relay update failed:', error);
+      showControlError(error?.message || String(error));
       Toast.show('error', 'Relay Update Failed', 'Could not update device_control.');
       await refresh();
     } finally {
@@ -1136,6 +1186,7 @@ const SupabaseDashboard = (() => {
   return {
     init() {
       startFreshnessTimer();
+      bindControlButton();
       refresh();
       subscribe();
     },

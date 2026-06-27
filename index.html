@@ -111,6 +111,9 @@
             <div class="user-role">Farm Manager</div>
           </div>
         </div>
+        <div style="margin-top:10px; font-size:11px; color:var(--text-muted); text-align:center;">
+          Developed by <strong>appvertex.in</strong>
+        </div>
       </div>
     </aside>
 
@@ -325,12 +328,13 @@
 
           <!-- Quick Controls -->
           <div style="padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); display:flex; gap:10px; flex-wrap:wrap;">
-              <button class="btn btn-primary" id="startIrrigationBtn" onclick="window.aqr.toggleManualRelay()">
+              <button class="btn btn-primary supabase-control-btn" id="startIrrigationBtn" type="button">
                 <i class="fa-solid fa-play"></i> Start Watering
               </button>
               <button class="btn btn-outline" id="refreshStatusBtn" onclick="window.aqr.fetchStatus()">
                 <i class="fa-solid fa-rotate"></i> Refresh
               </button>
+              <div id="supabaseControlError" class="supabase-control-error" role="alert" hidden></div>
             </div>
           </div>
 
@@ -350,6 +354,7 @@
                   <div class="progress-fill-linear" id="supabaseSoilFill" style="width:0%;"></div>
                 </div>
               </div>
+              <div id="supabaseMoistureError" class="supabase-control-error" role="alert" hidden></div>
               <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center;">
                 <div class="status-indicator offline" id="supabaseRelayBadge">
                   <span class="led red"></span>
