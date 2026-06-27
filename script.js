@@ -10,11 +10,12 @@
    SUPABASE CONFIG
    Paste your actual Supabase project URL and anon/publishable key below.
    ============================================================ */
-const SUPABASE_URL = "PASTE_URL_HERE"; // Paste your Supabase project URL here.
-const SUPABASE_ANON_KEY = "PASTE_KEY_HERE"; // Paste your Supabase anon/publishable key here.
+const SUPABASE_URL = "https://hzhaybstgurhfcymucoe.supabase.co"; // Paste your Supabase project URL here.
+const SUPABASE_ANON_KEY = "sb_publishable_2RI88cyW-Csz3VkoJaOJgg_fMdUP5U9"; // Paste your Supabase anon/publishable key here.
 const SUPABASE_CONFIG_READY =
-  !SUPABASE_URL.includes('PASTE_URL_HERE') &&
-  !SUPABASE_ANON_KEY.includes('PASTE_KEY_HERE');
+  /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL) &&
+  typeof SUPABASE_ANON_KEY === 'string' &&
+  SUPABASE_ANON_KEY.trim().length > 0;
 const supabaseClient = SUPABASE_CONFIG_READY
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
